@@ -3,20 +3,39 @@ import { useState, useEffect, useRef, useCallback } from "react";
 const COLORS=["#FF6B6B","#FFD93D","#6BCB77","#4D96FF","#FF6FC8","#A855F7","#FF9A3C","#00D2FF"];
 
 // ── Storage ───────────────────────────────────────────────────────────────────
-const LB_KEY="anasworld_lb_v4";
+const LB_KEY="anasworld_lb_v5";
 function getBoard(){try{return JSON.parse(localStorage.getItem(LB_KEY)||"[]");}catch{return[];}}
-function saveBoard(b){try{localStorage.setItem(LB_KEY,JSON.stringify(b));}catch{}}
-// dbGetUser wrapper (used by Leaderboard profile)
+function saveBoard(b){try{localStorage.setItem(LB_KEY,JSON.stringify(b.slice(0,50)));}catch{}}
+// Ensure a user always appears on the leaderboard (even with 0 points) so names persist
+function dbEnsureBoard(name,avatar,provider){
+  const b=getBoard();
+  if(!b.find(r=>r.name===name)){
+    b.push({name,scores:{},total:0,avatar:avatar||name.slice(0,2).toUpperCase(),provider:provider||"email",joined:Date.now()});
+    b.sort((a,c)=>c.total-a.total);
+    saveBoard(b);
+  }
+}
 
 // ── Global CSS ────────────────────────────────────────────────────────────────
 const G_CSS=`
 @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;800;900&family=Orbitron:wght@700;900&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
-html{scroll-behavior:smooth;}
-body{background:#050510;min-height:100vh;overflow-x:hidden;}
-::-webkit-scrollbar{width:6px;}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;}
+body{background:#050510;min-height:100vh;overflow-x:hidden;-webkit-tap-highlight-color:transparent;}
+input,textarea,button,select{font-size:16px;}
+::-webkit-scrollbar{width:6px;height:6px;}
 ::-webkit-scrollbar-track{background:#0a0a1a;}
 ::-webkit-scrollbar-thumb{background:linear-gradient(#A855F7,#FF6B6B);border-radius:4px;}
+/* Hide horizontal scrollbar on nav row but keep scrollability */
+nav div::-webkit-scrollbar{height:0;display:none;}
+
+/* ── Mobile responsiveness ── */
+@media (max-width:640px){
+  .logout-text{display:none;}
+}
+@media (max-width:480px){
+  .hide-mobile{display:none!important;}
+}
 
 /* ── Keyframes ── */
 @keyframes fall{from{transform:translateY(0) rotate(0deg);opacity:1}to{transform:translateY(110vh) rotate(720deg);opacity:0}}
@@ -279,18 +298,16 @@ function dbRegister(name,pass,provider="email",email=""){
   const uid=Date.now()+Math.random().toString(36).slice(2);
   db.users[name]={uid,name,pass,provider,email,avatar:name.slice(0,2).toUpperCase(),joined:new Date().toLocaleDateString(),scores:{},total:0,activities:[],streak:0,lastActive:Date.now()};
   db.sessions[uid]={name,ts:Date.now()};saveDB(db);
+  dbEnsureBoard(name,db.users[name].avatar,provider);
   return{ok:true,user:db.users[name]};
 }
 function dbLogin(name,pass){
   const db=loadDB();const u=db.users[name];
   if(!u)return{ok:false,err:"Account not found"};
   if(u.pass&&u.pass!==pass)return{ok:false,err:"Wrong password"};
-  u.lastActive=Date.now();saveDB(db);return{ok:true,user:u};
-}
-function dbSocialLogin(provider,fakeName){
-  const db=loadDB();const name=fakeName||(provider+"_user_"+Math.floor(Math.random()*9999));
-  if(!db.users[name]){const r=dbRegister(name,"",provider,"");if(r.ok)return{ok:true,user:r.user};}
-  return{ok:true,user:db.users[name]};
+  u.lastActive=Date.now();saveDB(db);
+  dbEnsureBoard(name,u.avatar,u.provider);
+  return{ok:true,user:u};
 }
 function dbAddScore(name,game,pts){
   const db=loadDB();const u=db.users[name];if(!u)return;
@@ -305,134 +322,215 @@ function dbAddScore(name,game,pts){
 }
 function dbGetUser(name){const db=loadDB();return db.users[name]||null;}
 
-// Social provider SVG icons
-function GoogleIcon(){return(<svg width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>);}
-function GithubIcon(){return(<svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>);}
-function MicrosoftIcon(){return(<svg width="16" height="16" viewBox="0 0 23 23"><rect x="1" y="1" width="10" height="10" fill="#F25022"/><rect x="12" y="1" width="10" height="10" fill="#7FBA00"/><rect x="1" y="12" width="10" height="10" fill="#00A4EF"/><rect x="12" y="12" width="10" height="10" fill="#FFB900"/></svg>);}
-
 function AuthModal({onLogin}){
   const [screen,setScreen]=useState("main");
-  const [name,setName]=useState(""),[pass,setPass]=useState(""),[email,setEmail]=useState(""),
-        [err,setErr]=useState(""),[loading,setLoading]=useState(false);
+  const [name,setName]=useState(""),[email,setEmail]=useState(""),[pass,setPass]=useState(""),[pass2,setPass2]=useState(""),
+        [err,setErr]=useState(""),[showPass,setShowPass]=useState(false);
 
-  const handleSocial=(provider)=>{
-    setLoading(provider);
-    setTimeout(()=>{
-      const fakeName=provider+"_"+Math.random().toString(36).slice(2,7);
-      const r=dbSocialLogin(provider,fakeName);
-      setLoading(false);if(r.ok)onLogin(r.user.name);
-    },800);
+  // Gmail-style username rules: 6-30 chars, letters/numbers/dots only,
+  // must start with a letter, no consecutive dots, cannot end with a dot.
+  const validateUsername=(u)=>{
+    if(u.length<6||u.length>30)return "Username must be 6–30 characters long";
+    if(!/^[a-zA-Z]/.test(u))return "Username must start with a letter";
+    if(!/^[a-zA-Z0-9.]+$/.test(u))return "Only letters, numbers and dots allowed";
+    if(/\.\./.test(u))return "No two dots in a row allowed";
+    if(/\.$/.test(u))return "Username cannot end with a dot";
+    return "";
   };
+  const validateEmail=(e)=>{
+    if(!e.trim())return "Please enter your email";
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))return "Enter a valid email (you@example.com)";
+    return "";
+  };
+  const validatePassword=(p)=>{
+    if(p.length<8)return "Password must be at least 8 characters";
+    if(!/[A-Z]/.test(p))return "Add at least one CAPITAL letter";
+    if(!/[a-z]/.test(p))return "Add at least one small letter";
+    if(!/[0-9]/.test(p))return "Add at least one number";
+    return "";
+  };
+
   const handleSignup=()=>{
-    if(!name.trim()||!pass.trim()){setErr("Please fill name and password");return;}
-    if(pass.length<4){setErr("Password needs at least 4 characters");return;}
-    const r=dbRegister(name.trim(),pass,"email",email);
-    if(!r.ok){setErr(r.err);return;}onLogin(name.trim());
+    const u=name.trim().toLowerCase();
+    const ue=validateUsername(u); if(ue){setErr(ue);return;}
+    const ee=validateEmail(email); if(ee){setErr(ee);return;}
+    const pe=validatePassword(pass); if(pe){setErr(pe);return;}
+    if(pass!==pass2){setErr("Passwords do not match");return;}
+    const r=dbRegister(u,pass,"email",email.trim());
+    if(!r.ok){setErr(r.err);return;}
+    onLogin(u);
   };
   const handleLogin=()=>{
-    if(!name.trim()||!pass.trim()){setErr("Please fill both fields");return;}
-    const r=dbLogin(name.trim(),pass);if(!r.ok){setErr(r.err);return;}onLogin(name.trim());
+    const u=name.trim().toLowerCase();
+    if(!u||!pass){setErr("Please fill in both fields");return;}
+    const r=dbLogin(u,pass);
+    if(!r.ok){setErr(r.err);return;}
+    onLogin(u);
   };
-  const handleGuest=()=>{const g="Guest_"+Math.floor(Math.random()*9999);dbRegister(g,"","guest");onLogin(g);}
-  const back=()=>{setScreen("main");setErr("");setName("");setPass("");setEmail("");}
+  const handleGuest=()=>{const g="guest"+Math.floor(1000+Math.random()*9000);dbRegister(g,"guestpass",  "guest");onLogin(g);};
+  const back=()=>{setScreen("main");setErr("");setName("");setEmail("");setPass("");setPass2("");setShowPass(false);};
 
-  const inp={width:"100%",padding:"0.65rem 1rem",borderRadius:"12px",border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.06)",color:"#fff",fontFamily:"'Nunito',sans-serif",fontSize:"0.93rem",marginBottom:"10px",outline:"none"};
-
-  const socialBtns=[
-    {id:"google",  label:"google",   Icon:GoogleIcon,    bg:"rgba(255,255,255,0.06)", border:"rgba(66,133,244,0.4)",  hover:"rgba(66,133,244,0.15)"},
-    {id:"github",  label:"github",   Icon:GithubIcon,    bg:"rgba(255,255,255,0.06)", border:"rgba(255,255,255,0.25)",hover:"rgba(255,255,255,0.12)"},
-    {id:"microsoft",label:"microsoft",Icon:MicrosoftIcon, bg:"rgba(255,255,255,0.06)", border:"rgba(0,164,239,0.4)",   hover:"rgba(0,164,239,0.12)"},
+  // Live username strength hints (shown on signup)
+  const uClean=name.trim().toLowerCase();
+  const uChecks=[
+    {ok:uClean.length>=6&&uClean.length<=30,label:"6–30 characters"},
+    {ok:/^[a-zA-Z]/.test(uClean),label:"Starts with a letter"},
+    {ok:uClean.length>0&&/^[a-zA-Z0-9.]+$/.test(uClean),label:"Letters, numbers & dots only"},
   ];
+  const pChecks=[
+    {ok:pass.length>=8,label:"8+ characters"},
+    {ok:/[A-Z]/.test(pass),label:"A capital letter"},
+    {ok:/[a-z]/.test(pass),label:"A small letter"},
+    {ok:/[0-9]/.test(pass),label:"A number"},
+  ];
+
+  const inp={width:"100%",padding:"0.7rem 1rem",borderRadius:"12px",border:"1px solid rgba(255,255,255,0.14)",background:"rgba(255,255,255,0.06)",color:"#fff",fontFamily:"'Nunito',sans-serif",fontSize:"16px",marginBottom:"4px",outline:"none",boxSizing:"border-box"};
+  const labelStyle={fontFamily:"'Nunito',sans-serif",fontSize:"0.78rem",color:"rgba(255,255,255,0.6)",fontWeight:700,marginBottom:"4px",display:"block",textAlign:"left"};
+  const fieldWrap={marginBottom:"0.85rem"};
+  const Check=({ok,label})=>(
+    <span style={{display:"inline-flex",alignItems:"center",gap:"4px",fontFamily:"'Nunito',sans-serif",fontSize:"0.68rem",color:ok?"#6BCB77":"rgba(255,255,255,0.35)",marginRight:"10px"}}>
+      <span>{ok?"✓":"○"}</span>{label}
+    </span>
+  );
 
   return(
     <div style={{position:"fixed",inset:0,zIndex:10000,display:"flex",alignItems:"center",justifyContent:"center",padding:"1rem",overflowY:"auto",background:"transparent"}}>
-      {/* Backdrop */}
       <Background/>
       {/* Floating decorative shapes */}
       <div style={{position:"absolute",inset:0,pointerEvents:"none",zIndex:1}}>
-        {[{x:10,y:15,s:80,c:"#A855F7"},{x:85,y:20,s:60,c:"#4D96FF"},{x:20,y:75,s:50,c:"#FF6FC8"},{x:80,y:70,s:70,c:"#6BCB77"}].map((o,i)=>(
+        {[{x:8,y:12,s:90,c:"#A855F7"},{x:86,y:18,s:64,c:"#4D96FF"},{x:16,y:78,s:54,c:"#FF6FC8"},{x:82,y:72,s:76,c:"#6BCB77"},{x:50,y:8,s:44,c:"#FFD93D"}].map((o,i)=>(
           <div key={i} style={{position:"absolute",left:`${o.x}%`,top:`${o.y}%`,width:o.s,height:o.s,borderRadius:"50%",background:`radial-gradient(circle,${o.c}33,transparent)`,animation:`floatSlow ${6+i*2}s ease-in-out infinite ${i}s`}}/>
         ))}
       </div>
 
-      <div style={{position:"relative",zIndex:2,maxWidth:"430px",width:"100%",margin:"auto",animation:"slideUp 0.5s cubic-bezier(0.34,1.56,0.64,1)"}}>
-        {/* Glow border wrapper */}
-        <div style={{padding:"2px",borderRadius:"28px",background:"linear-gradient(135deg,#A855F7,#FF6FC8,#FFD93D,#4D96FF,#6BCB77)",animation:"glow 3s infinite"}}>
-          <div style={{borderRadius:"27px",background:"linear-gradient(160deg,#0d0d2b 0%,#120820 50%,#0d1a2b 100%)",padding:"2.25rem 2rem",backdropFilter:"blur(30px)"}}>
+      <div style={{position:"relative",zIndex:2,maxWidth:"420px",width:"100%",margin:"auto",animation:"slideUp 0.5s cubic-bezier(0.34,1.56,0.64,1)"}}>
+        <div style={{padding:"2px",borderRadius:"28px",background:"linear-gradient(135deg,#A855F7,#FF6FC8,#FFD93D,#4D96FF,#6BCB77)",backgroundSize:"300% 300%",animation:"gradShift 5s ease infinite"}}>
+          <div style={{borderRadius:"27px",background:"linear-gradient(160deg,#0d0d2b 0%,#120820 50%,#0d1a2b 100%)",padding:"clamp(1.5rem,5vw,2.25rem) clamp(1.25rem,5vw,2rem)",backdropFilter:"blur(30px)"}}>
 
             {/* Brand header */}
             <div style={{textAlign:"center",marginBottom:"1.5rem"}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:"12px",marginBottom:"0.6rem"}}>
-                <BrandLogo size={44}/>
-                <div style={{textAlign:"left"}}>
-                  <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:"0.7rem",letterSpacing:"0.18em",color:"rgba(168,85,247,0.8)",textTransform:"uppercase",marginBottom:"2px"}}>MD ANAS</div>
-                  <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"1.5rem",background:"linear-gradient(135deg,#FF6B6B,#FFD93D,#6BCB77)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",lineHeight:1}}>Fun World</div>
-                </div>
+              <div style={{display:"flex",justifyContent:"center",marginBottom:"0.6rem",animation:"floatSlow 4s ease-in-out infinite"}}>
+                <BrandLogo size={56}/>
               </div>
-              <p style={{fontFamily:"'Nunito',sans-serif",fontSize:"0.78rem",color:"rgba(255,255,255,0.35)"}}>
-                🎮 Games &nbsp;⚽ Football &nbsp;💻 Code &nbsp;🌟 Grow
+              <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:"0.68rem",letterSpacing:"0.22em",color:"rgba(168,85,247,0.85)",textTransform:"uppercase",marginBottom:"3px"}}>MD ANAS</div>
+              <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"clamp(1.7rem,7vw,2.1rem)",background:"linear-gradient(135deg,#FF6B6B,#FFD93D,#6BCB77,#4D96FF)",backgroundSize:"200% 200%",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",lineHeight:1,animation:"gradShift 5s ease infinite"}}>Fun World</div>
+              <p style={{fontFamily:"'Nunito',sans-serif",fontSize:"0.8rem",color:"rgba(255,255,255,0.4)",marginTop:"0.5rem"}}>
+                🎮 Play &nbsp;·&nbsp; 📚 Learn &nbsp;·&nbsp; 🌟 Grow
               </p>
             </div>
 
             {screen==="main"&&(
               <>
-                {/* Social buttons - compact row */}
-                <div style={{display:"flex",gap:"8px",marginBottom:"1rem"}}>
-                  {socialBtns.map(b=>(
-                    <button key={b.id} onClick={()=>handleSocial(b.id)} disabled={!!loading}
-                      style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:"5px",
-                        padding:"0.65rem 0.4rem",borderRadius:"14px",
-                        background:loading===b.id?"rgba(168,85,247,0.2)":b.bg,
-                        border:`1px solid ${b.border}`,color:"#fff",cursor:"pointer",
-                        fontFamily:"'Nunito',sans-serif",fontSize:"0.7rem",fontWeight:700,
-                        letterSpacing:"0.02em",transition:"all 0.2s",opacity:loading&&loading!==b.id?0.5:1}}
-                      onMouseEnter={e=>{e.currentTarget.style.background=b.hover;e.currentTarget.style.transform="translateY(-2px)";}}
-                      onMouseLeave={e=>{e.currentTarget.style.background=b.bg;e.currentTarget.style.transform="none";}}>
-                      {loading===b.id?<div style={{width:16,height:16,border:"2px solid rgba(255,255,255,0.3)",borderTopColor:"#fff",borderRadius:"50%",animation:"rotateSlow 0.7s linear infinite"}}/>:<b.Icon/>}
-                      {b.label}
-                    </button>
-                  ))}
+                <div style={{textAlign:"center",marginBottom:"1.25rem",fontFamily:"'Nunito',sans-serif",fontSize:"0.9rem",color:"rgba(255,255,255,0.6)",lineHeight:1.6}}>
+                  Welcome! 🎉 Create your free account or log in to start your adventure.
                 </div>
-                {/* Divider */}
-                <div style={{display:"flex",alignItems:"center",gap:"10px",margin:"0.9rem 0"}}>
+                <Btn onClick={()=>{setScreen("signup");setErr("");}} g="linear-gradient(135deg,#FF6B6B,#FF9A3C)" style={{width:"100%",padding:"0.85rem",fontSize:"1rem",marginBottom:"0.7rem",animation:"pulse 2.5s infinite"}}>📝 Create Account</Btn>
+                <Btn onClick={()=>{setScreen("login");setErr("");}} g="linear-gradient(135deg,#4D96FF,#A855F7)" style={{width:"100%",padding:"0.85rem",fontSize:"1rem",marginBottom:"0.9rem"}}>🔑 Log In</Btn>
+                <div style={{display:"flex",alignItems:"center",gap:"10px",margin:"0.5rem 0 0.9rem"}}>
                   <div style={{flex:1,height:"1px",background:"linear-gradient(90deg,transparent,rgba(255,255,255,0.12),transparent)"}}/>
-                  <span style={{fontFamily:"'Nunito',sans-serif",fontSize:"0.72rem",color:"rgba(255,255,255,0.3)",letterSpacing:"0.05em"}}>or continue with email</span>
+                  <span style={{fontFamily:"'Nunito',sans-serif",fontSize:"0.72rem",color:"rgba(255,255,255,0.3)"}}>or</span>
                   <div style={{flex:1,height:"1px",background:"linear-gradient(90deg,transparent,rgba(255,255,255,0.12),transparent)"}}/>
                 </div>
-                {/* Email buttons */}
-                <div style={{display:"flex",gap:"8px",marginBottom:"0.75rem"}}>
-                  <Btn onClick={()=>{setScreen("signup");setErr("");}} g="linear-gradient(135deg,#FF6B6B,#FF9A3C)" style={{flex:1,padding:"0.65rem",fontSize:"0.88rem"}}>📝 Sign Up</Btn>
-                  <Btn onClick={()=>{setScreen("login");setErr("");}} g="linear-gradient(135deg,#4D96FF,#A855F7)" style={{flex:1,padding:"0.65rem",fontSize:"0.88rem"}}>🔑 Log In</Btn>
-                </div>
-                <button onClick={handleGuest} style={{width:"100%",padding:"0.6rem",borderRadius:"30px",border:"1px solid rgba(107,203,119,0.35)",background:"rgba(107,203,119,0.08)",color:"rgba(255,255,255,0.65)",fontFamily:"'Nunito',sans-serif",fontSize:"0.82rem",cursor:"pointer",transition:"all 0.2s"}}
+                <button onClick={handleGuest} style={{width:"100%",padding:"0.7rem",borderRadius:"30px",border:"1px solid rgba(107,203,119,0.35)",background:"rgba(107,203,119,0.08)",color:"rgba(255,255,255,0.7)",fontFamily:"'Nunito',sans-serif",fontSize:"0.85rem",fontWeight:700,cursor:"pointer",transition:"all 0.2s"}}
                   onMouseEnter={e=>e.currentTarget.style.background="rgba(107,203,119,0.16)"}
                   onMouseLeave={e=>e.currentTarget.style.background="rgba(107,203,119,0.08)"}>
                   👤 Continue as Guest
                 </button>
-                <p style={{fontFamily:"'Nunito',sans-serif",fontSize:"0.67rem",color:"rgba(255,255,255,0.22)",marginTop:"0.75rem",textAlign:"center"}}>Social login is simulated for demo purposes.</p>
+
+                {/* ── Front-page feature highlights ── */}
+                <div style={{marginTop:"1.4rem"}}>
+                  <div style={{textAlign:"center",fontFamily:"'Orbitron',sans-serif",fontSize:"0.62rem",letterSpacing:"0.2em",color:"rgba(255,255,255,0.4)",textTransform:"uppercase",marginBottom:"0.75rem"}}>
+                    ✨ What's inside ✨
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"7px"}}>
+                    {[
+                      {icon:"🎮",label:"12+ Fun Games",c:"#FF6B6B"},
+                      {icon:"📚",label:"English — 5 Levels",c:"#00D2FF"},
+                      {icon:"💻",label:"Learn Python Code",c:"#4D96FF"},
+                      {icon:"⚽",label:"Football Zone",c:"#6BCB77"},
+                      {icon:"🧠",label:"Brain & IQ Games",c:"#A855F7"},
+                      {icon:"😂",label:"Comedy & Jokes",c:"#FF6FC8"},
+                      {icon:"🎨",label:"Art Studio",c:"#FFD93D"},
+                      {icon:"🏆",label:"Global Leaderboard",c:"#FF9A3C"},
+                    ].map((f,i)=>(
+                      <div key={i} style={{display:"flex",alignItems:"center",gap:"7px",
+                        background:`${f.c}12`,border:`1px solid ${f.c}30`,borderRadius:"12px",
+                        padding:"0.5rem 0.6rem",animation:`cardEntrance 0.4s ${i*0.05}s both`}}>
+                        <span style={{fontSize:"1.05rem",flexShrink:0}}>{f.icon}</span>
+                        <span style={{fontFamily:"'Nunito',sans-serif",fontSize:"0.68rem",fontWeight:700,color:"rgba(255,255,255,0.78)",lineHeight:1.2}}>{f.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Mini highlights bar */}
+                  <div style={{display:"flex",justifyContent:"space-around",marginTop:"0.9rem",padding:"0.7rem 0.5rem",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"14px"}}>
+                    {[["🎯","30+","Activities"],["🌍","Top 50","Leaderboard"],["💯","Free","Forever"]].map((m,i)=>(
+                      <div key={i} style={{textAlign:"center"}}>
+                        <div style={{fontSize:"1rem"}}>{m[0]}</div>
+                        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"0.82rem",color:"#FFD93D"}}>{m[1]}</div>
+                        <div style={{fontFamily:"'Nunito',sans-serif",fontSize:"0.58rem",color:"rgba(255,255,255,0.4)"}}>{m[2]}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <p style={{fontFamily:"'Nunito',sans-serif",fontSize:"0.68rem",color:"rgba(255,255,255,0.25)",marginTop:"1rem",textAlign:"center",lineHeight:1.5}}>
+                  🔒 Your account is stored safely on your own device.
+                </p>
               </>
             )}
 
             {screen==="signup"&&(
               <>
-                <GText g="linear-gradient(135deg,#FF6B6B,#FFD93D)" style={{marginBottom:"0.9rem",textAlign:"center"}}>Create Account 🎉</GText>
-                <input placeholder="Your username" value={name} onChange={e=>setName(e.target.value)} style={inp}/>
-                <input placeholder="Email address (optional)" value={email} type="email" onChange={e=>setEmail(e.target.value)} style={inp}/>
-                <input placeholder="Password (min 4 characters)" value={pass} type="password" onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSignup()} style={inp}/>
-                {err&&<p style={{color:"#FF6B6B",fontFamily:"'Nunito',sans-serif",fontSize:"0.82rem",margin:"-4px 0 10px",animation:"shake 0.3s"}}>{err}</p>}
-                <Btn onClick={handleSignup} g="linear-gradient(135deg,#FF6B6B,#FFD93D)" style={{width:"100%",padding:"0.72rem",marginBottom:"10px",animation:"pulse 2s infinite"}}>Join the Adventure! 🚀</Btn>
-                <button onClick={back} style={{background:"none",border:"none",color:"rgba(255,255,255,0.38)",fontFamily:"'Nunito',sans-serif",fontSize:"0.8rem",cursor:"pointer",width:"100%"}}>← Back</button>
+                <GText g="linear-gradient(135deg,#FF6B6B,#FFD93D)" size="1.5rem" style={{marginBottom:"1.1rem",textAlign:"center"}}>Create Your Account 🎉</GText>
+                <div style={fieldWrap}>
+                  <label style={labelStyle}>Username</label>
+                  <input placeholder="e.g. anas.khan99" value={name} autoCapitalize="none" autoCorrect="off" spellCheck={false} onChange={e=>setName(e.target.value)} style={inp}/>
+                  <div style={{display:"flex",flexWrap:"wrap",marginTop:"6px"}}>
+                    {uChecks.map((c,i)=><Check key={i} ok={c.ok} label={c.label}/>)}
+                  </div>
+                </div>
+                <div style={fieldWrap}>
+                  <label style={labelStyle}>Email</label>
+                  <input placeholder="you@example.com" value={email} type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} onChange={e=>setEmail(e.target.value)} style={inp}/>
+                </div>
+                <div style={fieldWrap}>
+                  <label style={labelStyle}>Password</label>
+                  <div style={{position:"relative"}}>
+                    <input placeholder="Create a strong password" value={pass} type={showPass?"text":"password"} onChange={e=>setPass(e.target.value)} style={{...inp,marginBottom:0,paddingRight:"3rem"}}/>
+                    <button onClick={()=>setShowPass(s=>!s)} type="button" style={{position:"absolute",right:"8px",top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:"1.1rem",padding:"4px"}}>{showPass?"🙈":"👁️"}</button>
+                  </div>
+                  <div style={{display:"flex",flexWrap:"wrap",marginTop:"6px"}}>
+                    {pChecks.map((c,i)=><Check key={i} ok={c.ok} label={c.label}/>)}
+                  </div>
+                </div>
+                <div style={fieldWrap}>
+                  <label style={labelStyle}>Confirm Password</label>
+                  <input placeholder="Type your password again" value={pass2} type={showPass?"text":"password"} onChange={e=>setPass2(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSignup()} style={inp}/>
+                  {pass2.length>0&&<div style={{marginTop:"6px"}}><Check ok={pass===pass2&&pass.length>0} label="Passwords match"/></div>}
+                </div>
+                {err&&<p style={{color:"#FF6B6B",fontFamily:"'Nunito',sans-serif",fontSize:"0.82rem",margin:"2px 0 10px",animation:"shake 0.3s",textAlign:"center"}}>⚠️ {err}</p>}
+                <Btn onClick={handleSignup} g="linear-gradient(135deg,#FF6B6B,#FFD93D)" style={{width:"100%",padding:"0.8rem",marginBottom:"10px",fontSize:"1rem"}}>Join the Adventure! 🚀</Btn>
+                <button onClick={back} style={{background:"none",border:"none",color:"rgba(255,255,255,0.4)",fontFamily:"'Nunito',sans-serif",fontSize:"0.82rem",cursor:"pointer",width:"100%",padding:"6px"}}>‹ Back</button>
               </>
             )}
 
             {screen==="login"&&(
               <>
-                <GText g="linear-gradient(135deg,#4D96FF,#A855F7)" style={{marginBottom:"0.9rem",textAlign:"center"}}>Welcome Back! 🎮</GText>
-                <input placeholder="Your username" value={name} onChange={e=>setName(e.target.value)} style={inp}/>
-                <input placeholder="Password" value={pass} type="password" onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleLogin()} style={inp}/>
-                {err&&<p style={{color:"#FF6B6B",fontFamily:"'Nunito',sans-serif",fontSize:"0.82rem",margin:"-4px 0 10px",animation:"shake 0.3s"}}>{err}</p>}
-                <Btn onClick={handleLogin} g="linear-gradient(135deg,#4D96FF,#A855F7)" style={{width:"100%",padding:"0.72rem",marginBottom:"10px",animation:"pulse 2s infinite"}}>Let's Play! 🎮</Btn>
-                <button onClick={back} style={{background:"none",border:"none",color:"rgba(255,255,255,0.38)",fontFamily:"'Nunito',sans-serif",fontSize:"0.8rem",cursor:"pointer",width:"100%"}}>← Back</button>
+                <GText g="linear-gradient(135deg,#4D96FF,#A855F7)" size="1.5rem" style={{marginBottom:"1.1rem",textAlign:"center"}}>Welcome Back! 🎮</GText>
+                <div style={fieldWrap}>
+                  <label style={labelStyle}>Username</label>
+                  <input placeholder="Your username" value={name} autoCapitalize="none" autoCorrect="off" spellCheck={false} onChange={e=>setName(e.target.value)} style={inp}/>
+                </div>
+                <div style={fieldWrap}>
+                  <label style={labelStyle}>Password</label>
+                  <div style={{position:"relative"}}>
+                    <input placeholder="Your password" value={pass} type={showPass?"text":"password"} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleLogin()} style={{...inp,marginBottom:0,paddingRight:"3rem"}}/>
+                    <button onClick={()=>setShowPass(s=>!s)} type="button" style={{position:"absolute",right:"8px",top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:"1.1rem",padding:"4px"}}>{showPass?"🙈":"👁️"}</button>
+                  </div>
+                </div>
+                {err&&<p style={{color:"#FF6B6B",fontFamily:"'Nunito',sans-serif",fontSize:"0.82rem",margin:"2px 0 10px",animation:"shake 0.3s",textAlign:"center"}}>⚠️ {err}</p>}
+                <Btn onClick={handleLogin} g="linear-gradient(135deg,#4D96FF,#A855F7)" style={{width:"100%",padding:"0.8rem",marginBottom:"10px",fontSize:"1rem"}}>Let's Play! 🎮</Btn>
+                <button onClick={back} style={{background:"none",border:"none",color:"rgba(255,255,255,0.4)",fontFamily:"'Nunito',sans-serif",fontSize:"0.82rem",cursor:"pointer",width:"100%",padding:"6px"}}>‹ Back</button>
               </>
             )}
           </div>
@@ -444,38 +542,46 @@ function AuthModal({onLogin}){
 
 // ── NAVBAR ─────────────────────────────────────────────────────────────────────
 function Navbar({active,setActive,user,onLogout}){
-  const items=[{id:"home",label:"🏠"},{id:"affirm",label:"🌟 Affirm"},{id:"games",label:"🎮 Games"},{id:"cars",label:"🚗 Race"},{id:"football",label:"⚽ Football"},{id:"puzzle",label:"🧩 Puzzle"},{id:"brain",label:"🧠 Brain"},{id:"iq",label:"💡 IQ"},{id:"comedy",label:"😂 Comedy"},{id:"coding",label:"💻 Code"},{id:"english",label:"📚 English"},{id:"draw",label:"🎨 Draw"},{id:"leaderboard",label:"🏆 Board"}];
+  const items=[{id:"home",label:"🏠 Home"},{id:"affirm",label:"🌟 Affirm"},{id:"games",label:"🎮 Games"},{id:"cars",label:"🚗 Race"},{id:"football",label:"⚽ Football"},{id:"puzzle",label:"🧩 Puzzle"},{id:"brain",label:"🧠 Brain"},{id:"iq",label:"💡 IQ"},{id:"comedy",label:"😂 Comedy"},{id:"coding",label:"💻 Code"},{id:"english",label:"📚 English"},{id:"draw",label:"🎨 Draw"}];
   return(
-    <nav style={{position:"sticky",top:0,zIndex:1000,background:"rgba(5,5,16,0.88)",backdropFilter:"blur(28px)",WebkitBackdropFilter:"blur(28px)",borderBottom:"1px solid rgba(168,85,247,0.18)"}}>
-      <div style={{maxWidth:"1350px",margin:"0 auto",display:"flex",alignItems:"center",height:"52px",padding:"0 0.75rem",gap:"6px"}}>
-        {/* Brand mark */}
-        <div style={{display:"flex",alignItems:"center",gap:"7px",flexShrink:0,marginRight:"4px",cursor:"pointer"}} onClick={()=>setActive("home")}>
-          <BrandLogo size={28}/>
-          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:"0.62rem",letterSpacing:"0.14em",color:"rgba(168,85,247,0.85)",lineHeight:1,display:"flex",flexDirection:"column"}}>
-            <span>MD ANAS</span>
+    <nav style={{position:"sticky",top:0,zIndex:1000,background:"rgba(5,5,16,0.92)",backdropFilter:"blur(28px)",WebkitBackdropFilter:"blur(28px)",borderBottom:"1px solid rgba(168,85,247,0.18)"}}>
+      {/* Top row: brand + user + logout */}
+      <div style={{maxWidth:"1350px",margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",minHeight:"52px",padding:"6px 0.75rem",gap:"8px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:"8px",flexShrink:0,cursor:"pointer"}} onClick={()=>setActive("home")}>
+          <BrandLogo size={30}/>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:"0.68rem",letterSpacing:"0.14em",color:"rgba(168,85,247,0.9)",lineHeight:1.2}}>
+            <div>MD ANAS</div>
+            <div style={{fontSize:"0.5rem",color:"rgba(255,255,255,0.35)",letterSpacing:"0.1em"}}>FUN WORLD</div>
           </div>
         </div>
-        {/* Nav items */}
-        <div style={{display:"flex",gap:"1px",flex:1,overflowX:"auto",alignItems:"center",justifyContent:"center"}}>
+        {/* User chip + logout */}
+        <div style={{display:"flex",alignItems:"center",gap:"7px",flexShrink:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:"6px",background:"rgba(168,85,247,0.12)",border:"1px solid rgba(168,85,247,0.28)",padding:"4px 10px 4px 5px",borderRadius:"22px"}}>
+            <div style={{width:"24px",height:"24px",borderRadius:"50%",background:"linear-gradient(135deg,#A855F7,#FF6FC8)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Fredoka One',cursive",fontSize:"0.66rem",color:"#fff",flexShrink:0}}>{user.slice(0,2).toUpperCase()}</div>
+            <span style={{fontFamily:"'Nunito',sans-serif",fontSize:"0.72rem",fontWeight:700,color:"rgba(255,255,255,0.8)",maxWidth:"90px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user}</span>
+          </div>
+          <button onClick={onLogout}
+            style={{display:"inline-flex",alignItems:"center",gap:"5px",background:"rgba(255,107,107,0.14)",color:"#FF8A8A",border:"1px solid rgba(255,107,107,0.3)",padding:"6px 12px",borderRadius:"18px",fontFamily:"'Nunito',sans-serif",fontSize:"0.74rem",fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.2s"}}
+            onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,107,107,0.25)";e.currentTarget.style.color="#fff";}}
+            onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,107,107,0.14)";e.currentTarget.style.color="#FF8A8A";}}>
+            <span style={{fontSize:"0.85rem"}}>⏻</span><span className="logout-text">Logout</span>
+          </button>
+        </div>
+      </div>
+      {/* Nav items row — horizontally scrollable on mobile */}
+      <div style={{borderTop:"1px solid rgba(255,255,255,0.05)"}}>
+        <div style={{maxWidth:"1350px",margin:"0 auto",display:"flex",gap:"3px",overflowX:"auto",alignItems:"center",padding:"6px 0.5rem",WebkitOverflowScrolling:"touch",scrollbarWidth:"none"}}>
           {items.map(it=>(
             <button key={it.id} onClick={()=>setActive(it.id)}
-              style={{background:active===it.id?"linear-gradient(135deg,#A855F7,#FF6FC8)":"transparent",
-                color:active===it.id?"#fff":"rgba(255,255,255,0.55)",
-                border:"none",padding:"5px 8px",borderRadius:"16px",
-                fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:"0.68rem",
-                cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.2s",
+              style={{background:active===it.id?"linear-gradient(135deg,#A855F7,#FF6FC8)":"rgba(255,255,255,0.04)",
+                color:active===it.id?"#fff":"rgba(255,255,255,0.6)",
+                border:active===it.id?"none":"1px solid rgba(255,255,255,0.08)",padding:"6px 11px",borderRadius:"16px",
+                fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:"0.72rem",
+                cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.2s",flexShrink:0,
                 boxShadow:active===it.id?"0 2px 12px rgba(168,85,247,0.4)":"none"}}>
               {it.label}
             </button>
           ))}
-        </div>
-        {/* User chip */}
-        <div style={{display:"flex",alignItems:"center",gap:"5px",flexShrink:0}}>
-          <div style={{display:"flex",alignItems:"center",gap:"6px",background:"rgba(168,85,247,0.1)",border:"1px solid rgba(168,85,247,0.25)",padding:"3px 8px 3px 5px",borderRadius:"20px"}}>
-            <div style={{width:"22px",height:"22px",borderRadius:"50%",background:"linear-gradient(135deg,#A855F7,#FF6FC8)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Fredoka One',cursive",fontSize:"0.62rem",color:"#fff"}}>{user.slice(0,2).toUpperCase()}</div>
-            <span style={{fontFamily:"'Nunito',sans-serif",fontSize:"0.68rem",color:"rgba(255,255,255,0.75)",maxWidth:"70px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user}</span>
-          </div>
-          <button onClick={onLogout} style={{background:"rgba(255,107,107,0.12)",color:"rgba(255,107,107,0.8)",border:"1px solid rgba(255,107,107,0.22)",padding:"4px 8px",borderRadius:"12px",fontFamily:"'Nunito',sans-serif",fontSize:"0.65rem",cursor:"pointer"}}>✕</button>
         </div>
       </div>
     </nav>
@@ -519,7 +625,7 @@ function HomePage({setActive,user}){
     <div style={{position:"relative",zIndex:1,minHeight:"100vh",paddingBottom:"3rem"}}>
 
       {/* ── HERO ── */}
-      <div style={{position:"relative",overflow:"hidden",padding:"2.5rem 1.5rem 3rem",textAlign:"center"}}>
+      <div style={{position:"relative",overflow:"hidden",padding:"clamp(1.5rem,5vw,2.5rem) clamp(1rem,4vw,1.5rem) clamp(2rem,6vw,3rem)",textAlign:"center"}}>
         {/* Spinning ring decoration */}
         <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:"700px",height:"700px",borderRadius:"50%",border:"1px solid rgba(168,85,247,0.08)",pointerEvents:"none",animation:"rotateSlow 30s linear infinite"}}/>
         <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:"520px",height:"520px",borderRadius:"50%",border:"1px solid rgba(77,150,255,0.06)",pointerEvents:"none",animation:"rotateSlow 20s linear infinite reverse"}}/>
@@ -589,7 +695,7 @@ function HomePage({setActive,user}){
       </div>
 
       {/* ── Adventure cards ── */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(158px,1fr))",gap:"1rem",maxWidth:"1100px",margin:"0 auto 2rem",padding:"0 1rem"}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(148px,1fr))",gap:"clamp(0.6rem,2vw,1rem)",maxWidth:"1100px",margin:"0 auto 2rem",padding:"0 clamp(0.75rem,3vw,1rem)"}}>
         {cards.map((c,i)=>(
           <div key={c.id}
             onClick={()=>setActive(c.id)}
@@ -2465,23 +2571,30 @@ const STORY_TEMPLATES=[
 const SETTINGS=["a quiet Tuesday afternoon","a chaotic school morning","the annual science fair","a suspiciously calm Friday","the last day of term","a very important Zoom call","a visit to the supermarket","a school trip to the museum"];
 const EVENTS=["a pigeon stole their lunch and winked","they accidentally became the school's substitute teacher","a robot they built started giving life advice","they sneezed and invented a new hairstyle","their phone autocorrected 'hello' to 'I challenge you to a duel'","they sat on the TV remote and changed the channel to a cooking competition","a cat followed them home and refused to leave","they found a note that just said 'you know what you did'"];
 const TWISTS=["a nearby toaster started playing jazz music in celebration","the headteacher gave a standing ovation for no reason","three pigeons arrived and began judging the situation","it turned out the whole thing had been filmed for a documentary","the school WiFi mysteriously started working perfectly afterwards","their robot friend posted it on RoboGram before they could stop it","the event was declared a national holiday in a country they'd never heard of","a delivery drone arrived with a certificate saying 'Most Chaotic Human 2024'"];
+// Fun random character names so every story stars a different silly hero
+const STORY_NAMES=["Captain Giggles","Bouncy Bella","Sir Wobblesworth","Pixel Pete","Goofy Greta","Turbo Timmy","Madame Mischief","Ziggy Zoom","Professor Pickle","Daring Dora","Wacky Wally","Bubbles McGee","Rocket Rosa","Sneaky Sam","Jolly Jasper","Loopy Luna","Major Munchkin","Dizzy Dexter","Giggly Gail","Nutty Nora","Zippy Zane","Cosmic Cleo","Banana Bob","Whirlwind Wendy","Sir Sniffalot","Twinkle Tina","Doodle Dan","Marvelous Mia","Wiggly Winston","Splash Sophie"];
 
 function AIStoryGenerator({name,userName}){
   const [story,setStory]=useState("");const [loading,setLoading]=useState(false);const [mode,setMode]=useState("local");
   const [genre,setGenre]=useState("funny");const [anim,setAnim]=useState(false);
+  const [hero,setHero]=useState("");
   const rand=arr=>arr[Math.floor(Math.random()*arr.length)];
   const genLocal=()=>{
     setAnim(true);
+    const h=rand(STORY_NAMES);
+    setHero(h);
     const tpl=rand(STORY_TEMPLATES);
-    setStory(tpl(userName||name||"MD ANAS",rand(SETTINGS),rand(EVENTS),rand(TWISTS)));
+    setStory(tpl(h,rand(SETTINGS),rand(EVENTS),rand(TWISTS)));
     setTimeout(()=>setAnim(false),350);
   };
   const genAI=async()=>{
     setLoading(true);setStory("");
+    const h=rand(STORY_NAMES);
+    setHero(h);
     const prompts={
-      funny:`Write a very short (3-4 sentences), funny and kid-friendly story (suitable for ages 8-12) about a child named ${userName||"MD ANAS"} who has a hilarious adventure with a robot friend. Make it silly, light-hearted and end with a funny punchline. No violence or scary content.`,
-      horror:`Write a very short (3-4 sentences), funny horror-comedy story (suitable for ages 8-12) about ${userName||"MD ANAS"} encountering something spooky that turns out to be completely harmless and funny. Make it more funny than scary.`,
-      adventure:`Write a very short (3-4 sentences), exciting adventure story (suitable for ages 8-12) about ${userName||"MD ANAS"} going on an unexpected quest to find something ridiculous, like the world's largest pizza or a lost sock. Make it fun and triumphant.`,
+      funny:`Write a very short (3-4 sentences), funny and kid-friendly story (suitable for ages 8-12) about a silly character named ${h} who has a hilarious adventure with a robot friend. Make it silly, light-hearted and end with a funny punchline. No violence or scary content.`,
+      horror:`Write a very short (3-4 sentences), funny horror-comedy story (suitable for ages 8-12) about a character named ${h} encountering something spooky that turns out to be completely harmless and funny. Make it more funny than scary.`,
+      adventure:`Write a very short (3-4 sentences), exciting adventure story (suitable for ages 8-12) about a character named ${h} going on an unexpected quest to find something ridiculous, like the world's largest pizza or a lost sock. Make it fun and triumphant.`,
     };
     try{
       const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:200,messages:[{role:"user",content:prompts[genre]}]})});
@@ -2498,7 +2611,7 @@ function AIStoryGenerator({name,userName}){
         {genre==="horror"?"👻 Horror-Comedy Story":genre==="adventure"?"🚀 Adventure Story":"📖 Funny Story Generator"}
       </GText>
       <p style={{fontFamily:"'Nunito',sans-serif",color:"rgba(255,255,255,0.4)",fontSize:"0.78rem",marginBottom:"0.75rem"}}>
-        Starring <strong style={{color:"#FFD93D"}}>{userName||name||"MD ANAS"}</strong>!
+        Starring <strong style={{color:"#FFD93D"}}>{hero||"a mystery hero"}</strong>! 🎭
       </p>
       {/* Mode tabs */}
       <div style={{display:"flex",gap:"6px",justifyContent:"center",marginBottom:"0.75rem"}}>
@@ -4279,11 +4392,11 @@ function Leaderboard({currentUser,onBack}){
     <div style={{maxWidth:"760px",margin:"0 auto",position:"relative",zIndex:1}}>
       <BackBar onBack={onBack} label="Home" color="#FFD93D"/>
       <GText g="linear-gradient(135deg,#FFD93D,#FF9A3C,#A855F7)" size="2rem" style={{textAlign:"center",marginBottom:"0.4rem"}}>🏆 Global Leaderboard</GText>
-      <p style={{textAlign:"center",fontFamily:"'Nunito',sans-serif",color:"rgba(255,255,255,0.35)",fontSize:"0.82rem",marginBottom:"1rem"}}>All activity tracked • Rankings update in real-time</p>
+      <p style={{textAlign:"center",fontFamily:"'Nunito',sans-serif",color:"rgba(255,255,255,0.35)",fontSize:"0.82rem",marginBottom:"1rem"}}>All players saved forever • Top 50 ranked • Updates in real-time</p>
 
       {/* Tabs */}
       <div style={{display:"flex",justifyContent:"center",gap:"8px",marginBottom:"1.25rem"}}>
-        {[["global","🏆 Global Top 10"],["me","👤 My Profile"]].map(([id,lbl])=>(
+        {[["global","🏆 Global Top 50"],["me","👤 My Profile"]].map(([id,lbl])=>(
           <button key={id} onClick={()=>setView(id)}
             style={{background:view===id?"linear-gradient(135deg,#FFD93D,#FF9A3C)":"rgba(255,255,255,0.07)",
               color:"#fff",border:view===id?"none":"1px solid rgba(255,255,255,0.18)",padding:"0.45rem 1.2rem",
@@ -4295,15 +4408,20 @@ function Leaderboard({currentUser,onBack}){
 
       {view==="global"&&(
         <>
-          {board.length===0&&<Card style={{textAlign:"center"}}><div style={{fontSize:"3rem"}}>🎮</div><div style={{fontFamily:"'Fredoka One',cursive",color:"rgba(255,255,255,0.3)",fontSize:"1.1rem",marginTop:"0.5rem"}}>No scores yet — go play!</div></Card>}
-          <div style={{display:"flex",flexDirection:"column",gap:"9px"}}>
-            {board.slice(0,10).map((p,i)=>(
+          {board.length===0&&<Card style={{textAlign:"center"}}><div style={{fontSize:"3rem"}}>🎮</div><div style={{fontFamily:"'Fredoka One',cursive",color:"rgba(255,255,255,0.3)",fontSize:"1.1rem",marginTop:"0.5rem"}}>No players yet — be the first!</div></Card>}
+          {board.length>0&&(
+            <div style={{textAlign:"center",fontFamily:"'Nunito',sans-serif",fontSize:"0.78rem",color:"rgba(255,255,255,0.4)",marginBottom:"0.85rem"}}>
+              🌍 {board.length} player{board.length!==1?"s":""} registered · showing top {Math.min(board.length,50)}
+            </div>
+          )}
+          <div style={{display:"flex",flexDirection:"column",gap:"9px",maxHeight:"70vh",overflowY:"auto",paddingRight:"4px"}}>
+            {board.slice(0,50).map((p,i)=>(
               <div key={p.name}
                 style={{background:p.name===currentUser?"rgba(255,211,61,0.09)":"rgba(255,255,255,0.04)",
                   border:p.name===currentUser?"2px solid rgba(255,211,61,0.45)":"1px solid rgba(255,255,255,0.09)",
                   borderRadius:"18px",padding:"0.9rem 1.2rem",display:"flex",alignItems:"center",gap:"12px",
-                  backdropFilter:"blur(8px)",animation:`slideIn 0.3s ${i*0.05}s both`}}>
-                <div style={{fontSize:"1.7rem",minWidth:"34px",textAlign:"center"}}>{medals[i]||`#${i+1}`}</div>
+                  backdropFilter:"blur(8px)",animation:`slideIn 0.3s ${Math.min(i,15)*0.04}s both`}}>
+                <div style={{fontSize:i<3?"1.7rem":"1rem",minWidth:"34px",textAlign:"center",fontFamily:"'Fredoka One',cursive",color:i<3?"#fff":"rgba(255,255,255,0.5)"}}>{medals[i]||`#${i+1}`}</div>
                 <div style={{width:"42px",height:"42px",borderRadius:"50%",
                   background:`linear-gradient(135deg,${COLORS[i%COLORS.length]},${COLORS[(i+3)%COLORS.length]})`,
                   display:"flex",alignItems:"center",justifyContent:"center",
@@ -4315,10 +4433,10 @@ function Leaderboard({currentUser,onBack}){
                     display:"flex",alignItems:"center",gap:"6px",flexWrap:"wrap"}}>
                     {p.name}
                     {p.name===currentUser&&<span style={{fontSize:"0.62rem",background:"rgba(255,211,61,0.25)",color:"#FFD93D",padding:"1px 8px",borderRadius:"10px",border:"1px solid rgba(255,211,61,0.35)"}}>YOU</span>}
-                    {p.provider&&p.provider!=="email"&&<span style={{fontSize:"0.6rem",background:"rgba(255,255,255,0.08)",color:"rgba(255,255,255,0.4)",padding:"1px 7px",borderRadius:"10px"}}>{p.provider==="google"?"🌐":p.provider==="github"?"🐙":p.provider==="guest"?"👤":"🪟"}</span>}
+                    {p.provider==="guest"&&<span style={{fontSize:"0.6rem",background:"rgba(255,255,255,0.08)",color:"rgba(255,255,255,0.4)",padding:"1px 7px",borderRadius:"10px"}}>👤 Guest</span>}
                   </div>
                   <div style={{display:"flex",gap:"5px",flexWrap:"wrap",marginTop:"3px"}}>
-                    {gKeys.map(g=>p.scores&&p.scores[g]?<span key={g} style={{fontFamily:"'Nunito',sans-serif",fontSize:"0.68rem",color:"rgba(255,255,255,0.4)"}}>{gLabels[g]}{p.scores[g]}</span>:null)}
+                    {p.total>0?gKeys.map(g=>p.scores&&p.scores[g]?<span key={g} style={{fontFamily:"'Nunito',sans-serif",fontSize:"0.68rem",color:"rgba(255,255,255,0.4)"}}>{gLabels[g]}{p.scores[g]}</span>:null):<span style={{fontFamily:"'Nunito',sans-serif",fontSize:"0.68rem",color:"rgba(255,255,255,0.28)"}}>Hasn't played yet — total 0</span>}
                   </div>
                 </div>
                 <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"1.4rem",color:"#FFD93D",minWidth:"58px",textAlign:"right"}}>
@@ -4438,6 +4556,29 @@ export default function App(){
     window.scrollTo({top:0,behavior:"smooth"});
   };
 
+  // Ensure mobile devices scale the layout correctly (inject viewport meta once)
+  useEffect(()=>{
+    try{
+      let m=document.querySelector('meta[name="viewport"]');
+      if(!m){m=document.createElement("meta");m.name="viewport";document.head.appendChild(m);}
+      m.content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover";
+    }catch{}
+  },[]);
+
+  // One-time sync: make sure every registered user appears on the leaderboard
+  // (so names persist long-term and nobody vanishes after logging in)
+  useEffect(()=>{
+    try{
+      const db=loadDB();
+      Object.values(db.users||{}).forEach(u=>{
+        dbEnsureBoard(u.name,u.avatar,u.provider);
+        // keep board total in sync with the user's real total
+        const b=getBoard();const row=b.find(r=>r.name===u.name);
+        if(row&&(u.total||0)>(row.total||0)){row.total=u.total;row.scores=u.scores||row.scores;b.sort((a,c)=>c.total-a.total);saveBoard(b);}
+      });
+    }catch{}
+  },[]);
+
   useEffect(()=>{if(user){setConfetti(true);setTimeout(()=>setConfetti(false),4500);}},[user]);
 
   const handleScore=(game,pts)=>{
@@ -4475,7 +4616,7 @@ export default function App(){
       <Background/>
       {confetti&&<Confetti/>}
       <Navbar active={active} setActive={setActive} user={user} onLogout={()=>{setUser(null);setActiveRaw("home");try{sessionStorage.clear();}catch{}}}/>
-      <div style={{maxWidth:"1100px",margin:"0 auto",padding:"1.5rem 1rem 3.5rem",position:"relative",zIndex:1}}>
+      <div style={{maxWidth:"1100px",margin:"0 auto",padding:"clamp(1rem,4vw,1.5rem) clamp(0.6rem,3vw,1rem) 4rem",position:"relative",zIndex:1}}>
         {sections[active]||sections.home}
       </div>
       {/* Floating back button — shown on all non-home sections */}
