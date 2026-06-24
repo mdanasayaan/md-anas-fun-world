@@ -20,22 +20,55 @@ function dbEnsureBoard(name,avatar,provider){
 const G_CSS=`
 @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;800;900&family=Orbitron:wght@700;900&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;}
-body{background:#050510;min-height:100vh;overflow-x:hidden;-webkit-tap-highlight-color:transparent;}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;overflow-x:hidden;}
+body{background:#050510;min-height:100vh;overflow-x:hidden;-webkit-tap-highlight-color:transparent;width:100%;max-width:100vw;}
 input,textarea,button,select{font-size:16px;}
+img,svg{max-width:100%;height:auto;}
 ::-webkit-scrollbar{width:6px;height:6px;}
 ::-webkit-scrollbar-track{background:#0a0a1a;}
 ::-webkit-scrollbar-thumb{background:linear-gradient(#A855F7,#FF6B6B);border-radius:4px;}
 /* Hide horizontal scrollbar on nav row but keep scrollability */
 nav div::-webkit-scrollbar{height:0;display:none;}
 
+/* ── Responsive grid utility ── */
+.resp-grid-cards{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(148px,1fr));
+  gap:clamp(0.55rem,2vw,1rem);
+}
+.resp-stats-row{
+  display:flex;gap:8px;justify-content:center;flex-wrap:wrap;
+}
+.resp-cta-row{
+  display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
+}
+
 /* ── Mobile responsiveness ── */
 @media (max-width:640px){
   .logout-text{display:none;}
+  .resp-grid-cards{grid-template-columns:repeat(2,1fr)!important;gap:0.55rem!important;}
+  .resp-stats-row{gap:6px;}
+  .resp-cta-row{flex-direction:column;align-items:center;}
+  .resp-cta-row button{width:100%;max-width:260px;}
+  .resp-footer-strip{flex-direction:column!important;text-align:center!important;gap:0.75rem!important;}
+  .resp-footer-strip>div{min-width:unset!important;}
 }
 @media (max-width:480px){
   .hide-mobile{display:none!important;}
+  .resp-grid-cards{grid-template-columns:repeat(2,1fr)!important;gap:0.5rem!important;}
 }
+@media (max-width:360px){
+  .resp-grid-cards{grid-template-columns:repeat(2,1fr)!important;}
+}
+/* Tablet */
+@media (min-width:641px) and (max-width:900px){
+  .resp-grid-cards{grid-template-columns:repeat(3,1fr)!important;}
+}
+
+/* ── Root overflow guard ── */
+#root,#app,.app-root{overflow-x:hidden;max-width:100vw;}
+button{touch-action:manipulation;}
+a{touch-action:manipulation;}
 
 /* ── Keyframes ── */
 @keyframes fall{from{transform:translateY(0) rotate(0deg);opacity:1}to{transform:translateY(110vh) rotate(720deg);opacity:0}}
@@ -544,41 +577,44 @@ function AuthModal({onLogin}){
 function Navbar({active,setActive,user,onLogout}){
   const items=[{id:"home",label:"🏠 Home"},{id:"affirm",label:"🌟 Affirm"},{id:"games",label:"🎮 Games"},{id:"cars",label:"🚗 Race"},{id:"football",label:"⚽ Football"},{id:"puzzle",label:"🧩 Puzzle"},{id:"brain",label:"🧠 Brain"},{id:"iq",label:"💡 IQ"},{id:"comedy",label:"😂 Comedy"},{id:"coding",label:"💻 Code"},{id:"english",label:"📚 English"},{id:"draw",label:"🎨 Draw"}];
   return(
-    <nav style={{position:"sticky",top:0,zIndex:1000,background:"rgba(5,5,16,0.92)",backdropFilter:"blur(28px)",WebkitBackdropFilter:"blur(28px)",borderBottom:"1px solid rgba(168,85,247,0.18)"}}>
+    <nav style={{position:"sticky",top:0,zIndex:1000,background:"rgba(5,5,16,0.92)",backdropFilter:"blur(28px)",WebkitBackdropFilter:"blur(28px)",borderBottom:"1px solid rgba(168,85,247,0.18)",width:"100%",maxWidth:"100vw"}}>
       {/* Top row: brand + user + logout */}
-      <div style={{maxWidth:"1350px",margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",minHeight:"52px",padding:"6px 0.75rem",gap:"8px"}}>
-        <div style={{display:"flex",alignItems:"center",gap:"8px",flexShrink:0,cursor:"pointer"}} onClick={()=>setActive("home")}>
-          <BrandLogo size={30}/>
-          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:"0.68rem",letterSpacing:"0.14em",color:"rgba(168,85,247,0.9)",lineHeight:1.2}}>
+      <div style={{width:"100%",maxWidth:"1350px",margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",minHeight:"48px",padding:"5px clamp(0.5rem,3vw,0.75rem)",gap:"6px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:"6px",flexShrink:0,cursor:"pointer",minWidth:0}} onClick={()=>setActive("home")}>
+          <BrandLogo size={28}/>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:"clamp(0.55rem,2vw,0.68rem)",letterSpacing:"0.12em",color:"rgba(168,85,247,0.9)",lineHeight:1.2,whiteSpace:"nowrap"}}>
             <div>MD ANAS</div>
-            <div style={{fontSize:"0.5rem",color:"rgba(255,255,255,0.35)",letterSpacing:"0.1em"}}>FUN WORLD</div>
+            <div style={{fontSize:"clamp(0.42rem,1.5vw,0.5rem)",color:"rgba(255,255,255,0.35)",letterSpacing:"0.1em"}}>FUN WORLD</div>
           </div>
         </div>
         {/* User chip + logout */}
-        <div style={{display:"flex",alignItems:"center",gap:"7px",flexShrink:0}}>
-          <div style={{display:"flex",alignItems:"center",gap:"6px",background:"rgba(168,85,247,0.12)",border:"1px solid rgba(168,85,247,0.28)",padding:"4px 10px 4px 5px",borderRadius:"22px"}}>
-            <div style={{width:"24px",height:"24px",borderRadius:"50%",background:"linear-gradient(135deg,#A855F7,#FF6FC8)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Fredoka One',cursive",fontSize:"0.66rem",color:"#fff",flexShrink:0}}>{user.slice(0,2).toUpperCase()}</div>
-            <span style={{fontFamily:"'Nunito',sans-serif",fontSize:"0.72rem",fontWeight:700,color:"rgba(255,255,255,0.8)",maxWidth:"90px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user}</span>
+        <div style={{display:"flex",alignItems:"center",gap:"5px",flexShrink:0,minWidth:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:"5px",background:"rgba(168,85,247,0.12)",border:"1px solid rgba(168,85,247,0.28)",padding:"3px 8px 3px 4px",borderRadius:"22px",minWidth:0,maxWidth:"clamp(80px,25vw,130px)"}}>
+            <div style={{width:"22px",height:"22px",borderRadius:"50%",background:"linear-gradient(135deg,#A855F7,#FF6FC8)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Fredoka One',cursive",fontSize:"0.6rem",color:"#fff",flexShrink:0}}>{user.slice(0,2).toUpperCase()}</div>
+            <span style={{fontFamily:"'Nunito',sans-serif",fontSize:"0.7rem",fontWeight:700,color:"rgba(255,255,255,0.8)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user}</span>
           </div>
           <button onClick={onLogout}
-            style={{display:"inline-flex",alignItems:"center",gap:"5px",background:"rgba(255,107,107,0.14)",color:"#FF8A8A",border:"1px solid rgba(255,107,107,0.3)",padding:"6px 12px",borderRadius:"18px",fontFamily:"'Nunito',sans-serif",fontSize:"0.74rem",fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.2s"}}
+            style={{display:"inline-flex",alignItems:"center",gap:"4px",background:"rgba(255,107,107,0.14)",color:"#FF8A8A",border:"1px solid rgba(255,107,107,0.3)",padding:"5px 9px",borderRadius:"18px",fontFamily:"'Nunito',sans-serif",fontSize:"0.72rem",fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.2s",flexShrink:0}}
             onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,107,107,0.25)";e.currentTarget.style.color="#fff";}}
             onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,107,107,0.14)";e.currentTarget.style.color="#FF8A8A";}}>
             <span style={{fontSize:"0.85rem"}}>⏻</span><span className="logout-text">Logout</span>
           </button>
         </div>
       </div>
-      {/* Nav items row — horizontally scrollable on mobile */}
-      <div style={{borderTop:"1px solid rgba(255,255,255,0.05)"}}>
-        <div style={{maxWidth:"1350px",margin:"0 auto",display:"flex",gap:"3px",overflowX:"auto",alignItems:"center",padding:"6px 0.5rem",WebkitOverflowScrolling:"touch",scrollbarWidth:"none"}}>
+      {/* Nav items row — horizontally scrollable, touch-friendly */}
+      <div style={{borderTop:"1px solid rgba(255,255,255,0.05)",width:"100%",overflowX:"hidden"}}>
+        <div style={{width:"100%",maxWidth:"1350px",margin:"0 auto",display:"flex",gap:"3px",overflowX:"auto",alignItems:"center",padding:"5px clamp(0.4rem,2vw,0.5rem)",WebkitOverflowScrolling:"touch",scrollbarWidth:"none",msOverflowStyle:"none"}}>
           {items.map(it=>(
             <button key={it.id} onClick={()=>setActive(it.id)}
               style={{background:active===it.id?"linear-gradient(135deg,#A855F7,#FF6FC8)":"rgba(255,255,255,0.04)",
                 color:active===it.id?"#fff":"rgba(255,255,255,0.6)",
-                border:active===it.id?"none":"1px solid rgba(255,255,255,0.08)",padding:"6px 11px",borderRadius:"16px",
-                fontFamily:"'Nunito',sans-serif",fontWeight:700,fontSize:"0.72rem",
+                border:active===it.id?"none":"1px solid rgba(255,255,255,0.08)",
+                padding:"5px clamp(7px,2vw,11px)",borderRadius:"14px",
+                fontFamily:"'Nunito',sans-serif",fontWeight:700,
+                fontSize:"clamp(0.65rem,2vw,0.72rem)",
                 cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.2s",flexShrink:0,
-                boxShadow:active===it.id?"0 2px 12px rgba(168,85,247,0.4)":"none"}}>
+                boxShadow:active===it.id?"0 2px 12px rgba(168,85,247,0.4)":"none",
+                touchAction:"manipulation"}}>
               {it.label}
             </button>
           ))}
@@ -625,17 +661,17 @@ function HomePage({setActive,user}){
     <div style={{position:"relative",zIndex:1,minHeight:"100vh",paddingBottom:"3rem"}}>
 
       {/* ── HERO ── */}
-      <div style={{position:"relative",overflow:"hidden",padding:"clamp(1.5rem,5vw,2.5rem) clamp(1rem,4vw,1.5rem) clamp(2rem,6vw,3rem)",textAlign:"center"}}>
-        {/* Spinning ring decoration */}
-        <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:"700px",height:"700px",borderRadius:"50%",border:"1px solid rgba(168,85,247,0.08)",pointerEvents:"none",animation:"rotateSlow 30s linear infinite"}}/>
-        <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:"520px",height:"520px",borderRadius:"50%",border:"1px solid rgba(77,150,255,0.06)",pointerEvents:"none",animation:"rotateSlow 20s linear infinite reverse"}}/>
+      <div style={{position:"relative",overflow:"hidden",padding:"clamp(1rem,4vw,2.5rem) clamp(0.5rem,3vw,1.5rem) clamp(1.5rem,5vw,3rem)",textAlign:"center"}}>
+        {/* Spinning ring decoration — hidden on small screens for perf */}
+        <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:"min(700px,150vw)",height:"min(700px,150vw)",borderRadius:"50%",border:"1px solid rgba(168,85,247,0.08)",pointerEvents:"none",animation:"rotateSlow 30s linear infinite"}}/>
+        <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:"min(520px,120vw)",height:"min(520px,120vw)",borderRadius:"50%",border:"1px solid rgba(77,150,255,0.06)",pointerEvents:"none",animation:"rotateSlow 20s linear infinite reverse"}}/>
 
         {/* Greeting pill */}
-        <div style={{display:"inline-flex",alignItems:"center",gap:"7px",background:"rgba(168,85,247,0.12)",border:"1px solid rgba(168,85,247,0.28)",borderRadius:"30px",padding:"5px 14px",marginBottom:"1.2rem",animation:"slideDown 0.5s"}}>
+        <div style={{display:"inline-flex",alignItems:"center",gap:"6px",background:"rgba(168,85,247,0.12)",border:"1px solid rgba(168,85,247,0.28)",borderRadius:"30px",padding:"4px 12px",marginBottom:"1rem",animation:"slideDown 0.5s",maxWidth:"100%",flexWrap:"wrap",justifyContent:"center"}}>
           <span style={{fontSize:"1rem"}}>{greetIcon}</span>
-          <span style={{fontFamily:"'Nunito',sans-serif",fontSize:"0.8rem",color:"rgba(255,255,255,0.6)"}}>{greetText},</span>
-          <span style={{fontFamily:"'Fredoka One',cursive",fontSize:"0.85rem",color:"#FFD93D"}}>{user}</span>
-          <span style={{fontFamily:"'Nunito',sans-serif",fontSize:"0.72rem",color:"rgba(255,255,255,0.35)",marginLeft:"4px"}}>
+          <span style={{fontFamily:"'Nunito',sans-serif",fontSize:"clamp(0.72rem,2vw,0.8rem)",color:"rgba(255,255,255,0.6)"}}>{greetText},</span>
+          <span style={{fontFamily:"'Fredoka One',cursive",fontSize:"clamp(0.78rem,2vw,0.85rem)",color:"#FFD93D"}}>{user}</span>
+          <span style={{fontFamily:"'Nunito',sans-serif",fontSize:"clamp(0.65rem,1.8vw,0.72rem)",color:"rgba(255,255,255,0.35)",marginLeft:"2px"}}>
             {time.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}
           </span>
         </div>
@@ -651,7 +687,7 @@ function HomePage({setActive,user}){
             Fun World
           </div>
           {/* Tagline */}
-          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:"clamp(0.85rem,2vw,1.15rem)",color:"rgba(255,255,255,0.5)",marginTop:"0.5rem",letterSpacing:"0.03em"}}>
+          <div style={{fontFamily:"'Nunito',sans-serif",fontSize:"clamp(0.78rem,2vw,1.15rem)",color:"rgba(255,255,255,0.5)",marginTop:"0.5rem",letterSpacing:"0.02em",padding:"0 0.5rem"}}>
             🎉 The Ultimate Kids Adventure Platform — Play · Learn · Grow
           </div>
         </div>
@@ -665,77 +701,78 @@ function HomePage({setActive,user}){
         </div>
 
         {/* Stats row */}
-        <div style={{display:"flex",gap:"10px",justifyContent:"center",flexWrap:"wrap",marginBottom:"1.8rem"}}>
+        <div className="resp-stats-row" style={{marginBottom:"1.5rem"}}>
           {stats.map((s,i)=>(
-            <div key={s.label} style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${s.color}33`,borderRadius:"16px",padding:"0.7rem 1rem",minWidth:"85px",textAlign:"center",animation:`slideUp 0.4s ${i*0.08}s both`,transition:"all 0.25s",cursor:"default"}}
+            <div key={s.label} style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${s.color}33`,borderRadius:"16px",padding:"clamp(0.5rem,2vw,0.7rem) clamp(0.6rem,2vw,1rem)",minWidth:"72px",textAlign:"center",animation:`slideUp 0.4s ${i*0.08}s both`,transition:"all 0.25s",cursor:"default"}}
               onMouseEnter={e=>{e.currentTarget.style.background=`${s.color}14`;e.currentTarget.style.borderColor=`${s.color}66`;e.currentTarget.style.transform="translateY(-3px)";}}
               onMouseLeave={e=>{e.currentTarget.style.background="rgba(255,255,255,0.04)";e.currentTarget.style.borderColor=`${s.color}33`;e.currentTarget.style.transform="none";}}>
-              <div style={{fontSize:"1.3rem"}}>{s.icon}</div>
-              <div style={{fontFamily:"'Fredoka One',cursive",color:s.color,fontSize:"1.25rem"}}>{s.val}</div>
-              <div style={{fontFamily:"'Nunito',sans-serif",color:"rgba(255,255,255,0.4)",fontSize:"0.65rem"}}>{s.label}</div>
+              <div style={{fontSize:"clamp(1rem,3vw,1.3rem)"}}>{s.icon}</div>
+              <div style={{fontFamily:"'Fredoka One',cursive",color:s.color,fontSize:"clamp(1rem,3vw,1.25rem)"}}>{s.val}</div>
+              <div style={{fontFamily:"'Nunito',sans-serif",color:"rgba(255,255,255,0.4)",fontSize:"clamp(0.58rem,1.5vw,0.65rem)"}}>{s.label}</div>
             </div>
           ))}
         </div>
 
         {/* CTA buttons */}
-        <div style={{display:"flex",gap:"12px",justifyContent:"center",flexWrap:"wrap"}}>
-          <Btn onClick={()=>setActive("games")} g="linear-gradient(135deg,#FF6B6B,#FF9A3C)" style={{padding:"0.8rem 2rem",fontSize:"1rem",animation:"pulse 2s infinite",boxShadow:"0 8px 28px rgba(255,107,107,0.35)"}}>🎮 Start Playing!</Btn>
-          <Btn onClick={()=>setActive("football")} g="linear-gradient(135deg,#6BCB77,#4D96FF)" style={{padding:"0.8rem 2rem",fontSize:"1rem",boxShadow:"0 8px 28px rgba(107,203,119,0.25)"}}>⚽ Football Zone</Btn>
-          <Btn onClick={()=>setActive("leaderboard")} g="linear-gradient(135deg,#A855F7,#FF6FC8)" style={{padding:"0.8rem 2rem",fontSize:"1rem",boxShadow:"0 8px 28px rgba(168,85,247,0.3)"}}>🏆 Leaderboard</Btn>
+        <div className="resp-cta-row">
+          <Btn onClick={()=>setActive("games")} g="linear-gradient(135deg,#FF6B6B,#FF9A3C)" style={{padding:"0.75rem 1.75rem",fontSize:"clamp(0.88rem,2.5vw,1rem)",animation:"pulse 2s infinite",boxShadow:"0 8px 28px rgba(255,107,107,0.35)"}}>🎮 Start Playing!</Btn>
+          <Btn onClick={()=>setActive("football")} g="linear-gradient(135deg,#6BCB77,#4D96FF)" style={{padding:"0.75rem 1.75rem",fontSize:"clamp(0.88rem,2.5vw,1rem)",boxShadow:"0 8px 28px rgba(107,203,119,0.25)"}}>⚽ Football Zone</Btn>
+          <Btn onClick={()=>setActive("leaderboard")} g="linear-gradient(135deg,#A855F7,#FF6FC8)" style={{padding:"0.75rem 1.75rem",fontSize:"clamp(0.88rem,2.5vw,1rem)",boxShadow:"0 8px 28px rgba(168,85,247,0.3)"}}>🏆 Leaderboard</Btn>
         </div>
       </div>
 
       {/* ── Divider ── */}
-      <div style={{maxWidth:"800px",margin:"0 auto 1.5rem",height:"1px",background:"linear-gradient(90deg,transparent,rgba(168,85,247,0.35),rgba(77,150,255,0.35),transparent)"}}/>
+      <div style={{maxWidth:"800px",margin:"0 auto 1.25rem",height:"1px",background:"linear-gradient(90deg,transparent,rgba(168,85,247,0.35),rgba(77,150,255,0.35),transparent)"}}/>
 
       {/* ── Section heading ── */}
-      <div style={{textAlign:"center",marginBottom:"1.25rem"}}>
-        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:"0.7rem",letterSpacing:"0.22em",color:"rgba(168,85,247,0.6)",textTransform:"uppercase",marginBottom:"0.3rem"}}>Choose Your Adventure</div>
-        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"1.5rem",color:"rgba(255,255,255,0.85)"}}>What do you want to explore today?</div>
+      <div style={{textAlign:"center",marginBottom:"1rem",padding:"0 clamp(0.5rem,3vw,1rem)"}}>
+        <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:"clamp(0.6rem,1.8vw,0.7rem)",letterSpacing:"0.22em",color:"rgba(168,85,247,0.6)",textTransform:"uppercase",marginBottom:"0.3rem"}}>Choose Your Adventure</div>
+        <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"clamp(1.2rem,4vw,1.5rem)",color:"rgba(255,255,255,0.85)"}}>What do you want to explore today?</div>
       </div>
 
       {/* ── Adventure cards ── */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(148px,1fr))",gap:"clamp(0.6rem,2vw,1rem)",maxWidth:"1100px",margin:"0 auto 2rem",padding:"0 clamp(0.75rem,3vw,1rem)"}}>
+      <div className="resp-grid-cards" style={{maxWidth:"1100px",margin:"0 auto 2rem",padding:"0 clamp(0.5rem,3vw,1rem)"}}>
         {cards.map((c,i)=>(
           <div key={c.id}
             onClick={()=>setActive(c.id)}
             onMouseEnter={()=>setHovered(c.id)}
             onMouseLeave={()=>setHovered(null)}
-            style={{position:"relative",borderRadius:"22px",padding:"1.25rem 1rem",cursor:"pointer",overflow:"hidden",
+            style={{position:"relative",borderRadius:"18px",padding:"clamp(0.9rem,3vw,1.25rem) clamp(0.75rem,2vw,1rem)",cursor:"pointer",overflow:"hidden",
               background:hovered===c.id?c.g:"rgba(255,255,255,0.04)",
               border:`1px solid ${hovered===c.id?"transparent":"rgba(255,255,255,0.08)"}`,
               boxShadow:hovered===c.id?`0 16px 40px ${c.glow}44`:"0 2px 8px rgba(0,0,0,0.3)",
-              transform:hovered===c.id?"translateY(-7px) scale(1.04)":"none",
+              transform:hovered===c.id?"translateY(-5px) scale(1.03)":"none",
               transition:"all 0.28s cubic-bezier(0.34,1.56,0.64,1)",
-              animation:`cardEntrance 0.5s ${i*0.045}s both`}}>
+              animation:`cardEntrance 0.5s ${i*0.045}s both`,
+              touchAction:"manipulation"}}>
             {/* Background when not hovered */}
-            {hovered!==c.id&&<div style={{position:"absolute",inset:0,background:`linear-gradient(135deg,${c.glow}08,transparent)`,borderRadius:"22px"}}/>}
+            {hovered!==c.id&&<div style={{position:"absolute",inset:0,background:`linear-gradient(135deg,${c.glow}08,transparent)`,borderRadius:"18px"}}/>}
             {/* Shimmer on hover */}
             {hovered===c.id&&<div style={{position:"absolute",inset:0,background:"linear-gradient(45deg,transparent 30%,rgba(255,255,255,0.15) 50%,transparent 70%)",animation:"shimmerSlide 0.6s"}}/>}
             {/* Badge */}
-            <div style={{position:"absolute",top:"8px",right:"8px",background:"rgba(0,0,0,0.35)",backdropFilter:"blur(8px)",borderRadius:"20px",padding:"2px 7px",fontFamily:"'Nunito',sans-serif",fontSize:"0.58rem",color:"#fff",fontWeight:700}}>{c.badge}</div>
+            <div style={{position:"absolute",top:"7px",right:"7px",background:"rgba(0,0,0,0.35)",backdropFilter:"blur(8px)",borderRadius:"20px",padding:"2px 6px",fontFamily:"'Nunito',sans-serif",fontSize:"clamp(0.5rem,1.4vw,0.58rem)",color:"#fff",fontWeight:700}}>{c.badge}</div>
             {/* Icon */}
-            <div style={{marginBottom:"0.5rem",filter:hovered===c.id?"drop-shadow(0 4px 12px rgba(255,255,255,0.3))":"none",transition:"filter 0.25s"}}>
-              <SectionIcon type={c.icon} size={48}/>
+            <div style={{marginBottom:"0.4rem",filter:hovered===c.id?"drop-shadow(0 4px 12px rgba(255,255,255,0.3))":"none",transition:"filter 0.25s"}}>
+              <SectionIcon type={c.icon} size={44}/>
             </div>
-            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"1.08rem",color:"#fff",marginBottom:"0.18rem"}}>{c.title}</div>
-            <div style={{fontFamily:"'Nunito',sans-serif",color:hovered===c.id?"rgba(255,255,255,0.88)":"rgba(255,255,255,0.5)",fontSize:"0.72rem",lineHeight:1.4}}>{c.desc}</div>
+            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"clamp(0.92rem,2.5vw,1.08rem)",color:"#fff",marginBottom:"0.14rem"}}>{c.title}</div>
+            <div style={{fontFamily:"'Nunito',sans-serif",color:hovered===c.id?"rgba(255,255,255,0.88)":"rgba(255,255,255,0.5)",fontSize:"clamp(0.65rem,1.6vw,0.72rem)",lineHeight:1.35}}>{c.desc}</div>
           </div>
         ))}
       </div>
 
       {/* ── Footer strip ── */}
-      <div style={{maxWidth:"750px",margin:"0 auto",padding:"0 1rem"}}>
-        <div style={{background:"linear-gradient(135deg,rgba(168,85,247,0.1),rgba(77,150,255,0.1))",border:"1px solid rgba(168,85,247,0.2)",borderRadius:"20px",padding:"1.25rem 1.75rem",display:"flex",alignItems:"center",gap:"1.5rem",flexWrap:"wrap",justifyContent:"center"}}>
-          <div style={{textAlign:"center"}}>
+      <div style={{maxWidth:"750px",margin:"0 auto",padding:"0 clamp(0.5rem,3vw,1rem)"}}>
+        <div className="resp-footer-strip" style={{background:"linear-gradient(135deg,rgba(168,85,247,0.1),rgba(77,150,255,0.1))",border:"1px solid rgba(168,85,247,0.2)",borderRadius:"20px",padding:"clamp(0.9rem,3vw,1.25rem) clamp(1rem,3vw,1.75rem)",display:"flex",alignItems:"center",gap:"1.25rem",flexWrap:"wrap",justifyContent:"center"}}>
+          <div style={{textAlign:"center",flexShrink:0}}>
             <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:"0.6rem",letterSpacing:"0.15em",color:"rgba(168,85,247,0.6)",marginBottom:"3px"}}>MD ANAS</div>
-            <BrandLogo size={36}/>
+            <BrandLogo size={32}/>
           </div>
-          <div style={{flex:1,minWidth:"200px"}}>
-            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"1.1rem",color:"#fff",marginBottom:"0.25rem"}}>🌟 Today's Challenge</div>
-            <div style={{fontFamily:"'Nunito',sans-serif",color:"rgba(255,255,255,0.55)",fontSize:"0.82rem",lineHeight:1.6}}>Complete at least <strong style={{color:"#FFD93D"}}>3 different games</strong> to climb the leaderboard. Every action earns points! 🚀</div>
+          <div style={{flex:1,minWidth:"160px",textAlign:"center"}}>
+            <div style={{fontFamily:"'Fredoka One',cursive",fontSize:"clamp(0.95rem,2.5vw,1.1rem)",color:"#fff",marginBottom:"0.2rem"}}>🌟 Today's Challenge</div>
+            <div style={{fontFamily:"'Nunito',sans-serif",color:"rgba(255,255,255,0.55)",fontSize:"clamp(0.75rem,2vw,0.82rem)",lineHeight:1.5}}>Complete at least <strong style={{color:"#FFD93D"}}>3 different games</strong> to climb the leaderboard. Every action earns points! 🚀</div>
           </div>
-          <Btn onClick={()=>setActive("games")} g="linear-gradient(135deg,#A855F7,#FF6FC8)" style={{padding:"0.6rem 1.4rem",fontSize:"0.88rem",whiteSpace:"nowrap"}}>Play Now →</Btn>
+          <Btn onClick={()=>setActive("games")} g="linear-gradient(135deg,#A855F7,#FF6FC8)" style={{padding:"0.6rem 1.4rem",fontSize:"clamp(0.82rem,2vw,0.88rem)",whiteSpace:"nowrap"}}>Play Now →</Btn>
         </div>
       </div>
 
@@ -769,8 +806,8 @@ function SiteFeedback(){
     setTimeout(()=>setSent(false),4500);
   };
   return(
-    <div style={{maxWidth:"750px",margin:"1.5rem auto 0",padding:"0 1rem"}}>
-      <div style={{background:"linear-gradient(135deg,rgba(255,111,200,0.12),rgba(168,85,247,0.1),rgba(0,210,255,0.1))",border:"1px solid rgba(255,111,200,0.28)",borderRadius:"22px",padding:"1.6rem 1.5rem",textAlign:"center"}}>
+    <div style={{maxWidth:"750px",margin:"1.5rem auto 0",padding:"0 clamp(0.5rem,3vw,1rem)"}}>
+      <div style={{background:"linear-gradient(135deg,rgba(255,111,200,0.12),rgba(168,85,247,0.1),rgba(0,210,255,0.1))",border:"1px solid rgba(255,111,200,0.28)",borderRadius:"22px",padding:"clamp(1rem,4vw,1.6rem) clamp(0.9rem,3vw,1.5rem)",textAlign:"center"}}>
         <div style={{fontSize:"2rem",marginBottom:"0.3rem"}}>💖🗨️</div>
         <GText g="linear-gradient(135deg,#FF6FC8,#FFD93D,#00D2FF)" size="1.4rem" style={{marginBottom:"0.25rem"}}>How do you like MD ANAS Fun World?</GText>
         <p style={{fontFamily:"'Nunito',sans-serif",color:"rgba(255,255,255,0.5)",fontSize:"0.82rem",marginBottom:"1.1rem"}}>Tap an emoji to rate the whole website — your opinion makes us better! 🌈</p>
@@ -4616,7 +4653,7 @@ export default function App(){
       <Background/>
       {confetti&&<Confetti/>}
       <Navbar active={active} setActive={setActive} user={user} onLogout={()=>{setUser(null);setActiveRaw("home");try{sessionStorage.clear();}catch{}}}/>
-      <div style={{maxWidth:"1100px",margin:"0 auto",padding:"clamp(1rem,4vw,1.5rem) clamp(0.6rem,3vw,1rem) 4rem",position:"relative",zIndex:1}}>
+      <div style={{maxWidth:"1100px",margin:"0 auto",padding:"clamp(0.75rem,3vw,1.5rem) clamp(0.4rem,2.5vw,1rem) 4rem",position:"relative",zIndex:1,width:"100%",overflowX:"hidden"}}>
         {sections[active]||sections.home}
       </div>
       {/* Floating back button — shown on all non-home sections */}
